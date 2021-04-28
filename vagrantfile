@@ -1,0 +1,54 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+$mysql_install = <<MYSQL_INSTALL
+sudo apt-get install -y mariadb-server
+sudo mysqladmin -u root password R00tPassword
+sudo mysql -u root -p'R00tPassword' << EOF
+GRANT ALL PRIVILEGES ON *.* TO 'vaultadmin'@'%' IDENTIFIED BY 'vaultadminpassword' WITH GRANT OPTION;
+CREATE DATABASE app;
+FLUSH PRIVILEGES;
+EOF
+sudo sed -i 's/bind-address/#bind-address/g' /etc/mysql/mariadb.conf.d/50-server.cnf
+sudo service mysql restart;
+echo '{"service": {"name": "db", "tags": ["mysql"], "port":3306}}' | sudo tee /etc/consul.d/mysql.json
+sudo service consul restart
+MYSQL_INSTALL
+
+Vagrant.configure(2) do |config|
+  config.vm.provider "virtualbox" do |vb|
+    vb.customize ["modifyvm", :id, "--memory", "512"]
+    vb.customize ["modifyvm", :id, "--cpus", "1"]
+    vb.customize ["modifyvm", :id, "--cpuexecutioncap", "50"]
+    vb.customize ["modifyvm", :id, "--chipset", "ich9"]
+    vb.customize ["modifyvm", :id, "--ioapic", "on"]
+  end
+  
+  config.vm.define "node1" do |node1|
+    node1.vm.network :private_network, ip: "192.168.50.151", virtualbox__intnet: false
+    node1.vm.box = "moarvagrantzpls/ubuntu_vault"
+    node1.vm.hostname = "node1"
+    node1.vm.network :forwarded_port, guest: 8200, host: 8201, auto_correct: true
+    node1.vm.provision "shell", path: "scripts/node1.sh", privileged: true
+    node1.vm.synced_folder "synced/", "/opt/vagrant"
+  end
+
+ config.vm.define "node2" do |node2|
+   node2.vm.network :private_network, ip: "192.168.50.152", virtualbox__intnet: false
+   node2.vm.box = "moarvagrantzpls/ubuntu_vault"
+   node2.vm.hostname = "node2"
+   node2.vm.network :forwarded_port, guest: 8200, host: 8202, auto_correct: true
+   node2.vm.provision "shell", path: "scripts/node2.sh", privileged: true
+   node2.vm.synced_folder "synced/", "/opt/vagrant"
+ end 
+ config.vm.define "node3" do |node3|
+   node3.vm.network :private_network, ip: "192.168.50.153", virtualbox__intnet: false
+   node3.vm.box = "moarvagrantzpls/ubuntu_vault"
+   node3.vm.hostname = "node3"
+   node3.vm.network :forwarded_port, guest: 8200, host: 8203, auto_correct: true
+   node3.vm.provision "shell", path: "scripts/node3.sh", privileged: true
+   node3.vm.synced_folder "synced/", "/opt/vagrant"
+ end
+  #config.vm.provision "shell", path: "scripts/ent_install.sh", privileged: true
+end
+#   config.vm.provision "mysql", type: "shell", inline: $mysql_install, privileged: false

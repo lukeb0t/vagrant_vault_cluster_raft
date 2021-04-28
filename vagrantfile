@@ -1,20 +1,6 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-$mysql_install = <<MYSQL_INSTALL
-sudo apt-get install -y mariadb-server
-sudo mysqladmin -u root password R00tPassword
-sudo mysql -u root -p'R00tPassword' << EOF
-GRANT ALL PRIVILEGES ON *.* TO 'vaultadmin'@'%' IDENTIFIED BY 'vaultadminpassword' WITH GRANT OPTION;
-CREATE DATABASE app;
-FLUSH PRIVILEGES;
-EOF
-sudo sed -i 's/bind-address/#bind-address/g' /etc/mysql/mariadb.conf.d/50-server.cnf
-sudo service mysql restart;
-echo '{"service": {"name": "db", "tags": ["mysql"], "port":3306}}' | sudo tee /etc/consul.d/mysql.json
-sudo service consul restart
-MYSQL_INSTALL
-
 Vagrant.configure(2) do |config|
   config.vm.provider "virtualbox" do |vb|
     vb.customize ["modifyvm", :id, "--memory", "512"]
@@ -49,6 +35,5 @@ Vagrant.configure(2) do |config|
    node3.vm.provision "shell", path: "scripts/node3.sh", privileged: true
    node3.vm.synced_folder "synced/", "/opt/vagrant"
  end
-  #config.vm.provision "shell", path: "scripts/ent_install.sh", privileged: true
 end
-#   config.vm.provision "mysql", type: "shell", inline: $mysql_install, privileged: false
+
